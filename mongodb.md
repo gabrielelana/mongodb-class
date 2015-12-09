@@ -1215,15 +1215,231 @@ WriteResult({ "nRemoved" : 1 })
 WriteResult({ "nRemoved" : 1 })
 ```
 
+---
 
+template: section
+# Indexing and Query Optimization
 
+---
 
+template: content
+# Indexes
 
+* Very important to understand to use MongoDB
+* Most used query on big collections should be indexed
+* With indexes MongoDB can use IO, CPU and memory more efficiently
+* Wrong indexes will result in slow queries, slow writes and poorly utilized hardware
+* Without an index the only way to satisfy a query is to scan all documents linearly
+* Only one index can be selected per query (not true for MongoDB > 2.6)
 
+---
 
+template: content
+# Indexes: Single Key
 
+Every collection has at least one index on `_id` field
 
+```javascript
+> use garden
 
+> db.users.getIndexes()
+[ { "v" : 1,
+    "key" : {
+      "_id" : 1
+    },
+    "name" : "_id_",
+    "ns" : "garden.users"
+  }
+]
+```
+
+---
+
+template: content
+# Indexes: Explain
+
+Using method `explain(<VERBOSE>)` on cursor we could find out if we are using an index or not
+
+```javascript
+> db.users.find({username: "thawkins"}, {_id: 1})
+{ "_id" : ObjectId("4c4b1476238d3b4dd5000003") }
+
+> db.users.find({username: "thawkins"}).explain(true)
+// look at the result
+
+> db.users.find({_id: ObjectId("4c4b1476238d3b4dd5000003")).explain(true)
+// look at the result
+
+> db.users.createIndex({username: 1})
+> db.users.getIndexes()
+// look at the result
+
+> db.users.find({username: "thawkins"}).explain(true)
+// look at the result
+```
+
+---
+
+template: content
+# Indexes: Unique
+
+To ensure a field is unique we can create an unique index with `{unique: true}` option
+
+```javascript
+> db.users.dropIndex("username_1")
+{ "nIndexesWas" : 2, "ok" : 1 }
+
+> db.users.createIndex({username: 1}, {unique: true})
+// created index with unique constraint
+
+> db.users.find({username: "thawkins"}, {_id: 1})
+{ "_id" : ObjectId("4c4b1476238d3b4dd5000003") }
+
+> db.users.insert({username: "thawkins"})
+WriteResult({
+  "nInserted" : 0,
+  "writeError" : {
+    "code" : 11000,
+    "errmsg" : "E11000 duplicate key error... "
+  }
+})
+```
+
+---
+
+template: content
+# Indexes: Sparse
+
+You want to create a sparse index with `{sparse: true}` option when:
+* The field to be indexes gets populated only later in the lifetime of the document, problematic especially with an unique index
+* The field it's not common to all the documents, with a sparse index you can save disk space and computation time on write
+
+```javascript
+> db.products.createIndex({sku: 1}, {unique: true, sparse: true})
+{ "createdCollectionAutomatically" : false,
+  "numIndexesBefore" : 1,
+  "numIndexesAfter" : 2,
+  "ok" : 1
+}
+
+> db.products.getIndexes()
+// look at the result
+
+> db.system.indexes.find()
+// look at the result
+```
+
+---
+
+template: content
+# Indexes: Compound
+
+You can created indexes on multiple fields
+* Fields order in query is not relevant
+* Compound indexes can be partially used but with some restrictions
+
+```javascript
+> db.restaurants.createIndex({cuisine: 1, borough: 1})
+> db.restaurants.find({cuisine: "Bakery", borough: "Bronx"})
+// uses the index, see with explain
+
+> db.restaurants.find({borough: "Bronx", cuisine: "Bakery"})
+// uses the same index, see with explain
+
+> db.restaurants.find({cuisine: "Bakery"})
+// still uses (partially) the same index as before, see with explain
+
+> db.restaurants.find({borough: "Bronx"})
+// doesn't use the index, see with explain
+```
+
+---
+
+template: content
+# Indexes: Sort
+
+If you don't use an index the sorting is done in memory and could be a major performance hit
+
+```javascript
+> db.restaurants.find({cuisine: "Bakery", borough: "Bronx"}).sort({name: 1})
+// uses the compound index {cousine: 1, borough: 1}
+// but sort is done in memory
+
+> db.restaurants.createIndex({cuisine: 1, borough: 1, name: 1})
+// NOTE: now the previous index is redundant/useless
+
+> db.restaurants.find({cuisine: "Bakery", borough: "Bronx"}).sort({name: 1})
+// uses the compound index and sort is done through index
+
+> db.restaurants.find({cuisine: "Bakery"}).sort({borough: 1, name: 1})
+// uses the index to sort
+
+> db.restaurants.find({cuisine: "Bakery"}).sort({borough: -1, name: -1})
+// uses the index to sort
+
+> db.restaurants.find({cuisine: "Bakery"}).sort({borough: 1, name: -1})
+// sort in memory!!!
+```
+
+---
+
+template: content
+# Indexes: Covering
+
+The ultimate performance: respond to a query only using the index
+
+```javascript
+> db.restaurants.find(
+...   {cuisine: "Bakery", borough: "Bronx"},
+...   {_id: 0, name: 1}
+... ).sort({name: 1})
+{ "name" : "Angelica'S Bakery" }
+{ "name" : "Biarritz Bakery" }
+{ "name" : "Caffe Egidio" }
+{ "name" : "Champion Bakery" }
+{ "name" : "E & L Bakery & Coffee Shop" }
+...
+
+// look with explain, there's no FETCH in winning plan
+// look with explain(true), "executionStats.totalDocsExamined" == 0
+```
+
+---
+
+template: content
+# Indexes: Identify Slow Queries
+
+```javascript
+> use stocks
+> db.values.find({stock_symbol: "GOOG"}).sort({date: -1}).limit(1)
+// it's gonna be slow, let's find out how to spot it
+
+> db.setProfilingLevel(1, 50)
+// log queries slower than 50 milliseconds
+
+> db.values.find({stock_symbol: "GOOG"}).sort({date: -1}).limit(1)
+> db.system.profile.find()
+// look at the slow query and fix it
+
+> db.setProfilingLevel(0)
+```
+
+---
+
+template: content
+# Indexes: Conclusions
+
+* Lookout for hit on write performance
+* More restrictive field first wins in performance for compound indexes
+* Watch out for the field order in compound indexes
+* Remove unused indexes
+* Indexes are almost always good for mostly read loads
+* Indexes must fit in memory if possible
+
+---
+
+template: section
+# Full Text Search
 
 ---
 
@@ -1233,12 +1449,12 @@ template: section
 ---
 
 template: section
-# Data Modeling and Design
+# Data Workshop
 
 ---
 
 template: section
-# Data Workshop
+# Data Modeling and Design
 
 ---
 
