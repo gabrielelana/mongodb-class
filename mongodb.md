@@ -1427,6 +1427,123 @@ template: content
 ---
 
 template: content
+# Indexes: Full Text
+
+We can create a full text index on multiple fields:
+* Automatic real-time indexing with stemming
+* Optional assignable weights by field name
+* Multilanguage support
+* Stop words removal
+* Exact phrase or word matches
+* Exclude results with a given word or phrase
+
+```javascript
+> use examples
+
+> db.books.count()
+431
+```
+
+---
+
+template: content
+# Indexes: Full Text
+
+```javascript
+> db.books.findOne()
+{ "_id" : 1,
+  "title" : "Unlocking Android",
+  "isbn" : "1933988673",
+  "pageCount" : 416,
+  "publishedDate" : ISODate("2009-04-01T07:00:00Z"),
+  "thumbnailUrl" : "https://s3.amazonaws.com/...",
+  "shortDescription" : "Unlocking Android: ...",
+  "longDescription" : "Android is an open source ...",
+  "status" : "PUBLISH",
+  "authors" : ["W. Frank Ableson", "Charlie Collins", "Robi Sen"],
+  "categories" : [
+    "Open Source",
+    "Mobile"
+  ]
+}
+```
+
+---
+
+template: content
+# Indexes: Full Text
+
+```javascript
+> db.books.stats()
+
+> db.books.createIndex(
+...   {title: "text",
+...    shortDescription: "text",
+...    longDescription: "text",
+...    authors: "text",
+...    categories: "text"},
+...   {weights:
+...     {title: 10,
+...      shortDescription: 3,
+...      longDescription: 1,
+...      authors: 1,
+...      categories: 5}}
+... )
+
+> db.books.stats()
+// the size of the index is larger than the whole collection!
+```
+
+---
+
+template: content
+# Indexes: Full Text
+
+```javascript
+> db.books.find({$text: {$search: "actions"}}, {_id: 0, title: 1})
+{ "title" : "Flexible Rails" }
+{ "title" : "SQR in PeopleSoft and Other Applications" }
+{ "title" : "SOA Security" }
+{ "title" : "Ruby for Rails" }
+{ "title" : "Android in Action, Third Edition" }
+{ "title" : "Mule in Action, Second Edition" }
+...
+
+> db.books.find({$text: {$search: '"MongoDB in Action"'}}, {_id: 0, title: 1})
+{ "title" : "MongoDB in Action, Second Edition" }
+{ "title" : "MongoDB in Action" }
+```
+
+---
+
+template: content
+# Indexes: Full Text
+
+```javascript
+> db.books.find(
+...   {$text: {$search: "actions"}},
+...   {_id: 0, title: 1, score: {$meta: "textScore"}})
+{ "title" : "Flexible Rails", "score" : 0.5022026431718062 }
+{ "title" : "Android in Action, Third Edition", "score" : 6.25 }
+{ "title" : "SOA Security", "score" : 0.5053191489361702 }
+...
+
+> db.books.find(
+...   {$text: {$search: "actions"}},
+...   {_id: 0, title: 1, score: {$meta: "textScore"}}
+... ).sort({score: {$meta: "textScore"}})
+{ "title" : "Spring Batch in Action", "score" : 11.666666666666666 }
+{ "title" : "Hadoop in Action", "score" : 10.8381456241033 }
+{ "title" : "HTML5 in Action", "score" : 10.63548951048951 }
+{ "title" : "Jess in Action", "score" : 9.813092979127134 }
+{ "title" : "MongoDB in Action", "score" : 9.801655335501033 }
+{ "title" : "Seam in Action", "score" : 9.799644473173885 }
+...
+```
+
+---
+
+template: content
 # Indexes: Conclusions
 
 * Lookout for hit on write performance
@@ -1435,11 +1552,6 @@ template: content
 * Remove unused indexes
 * Indexes are almost always good for mostly read loads
 * Indexes must fit in memory if possible
-
----
-
-template: section
-# Full Text Search
 
 ---
 
