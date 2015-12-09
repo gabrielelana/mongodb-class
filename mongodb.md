@@ -1167,11 +1167,53 @@ What if you want to add skills without repetition? Use `$addToSet`
 }
 ```
 
+---
 
+template: content
+# Remove
 
+To remove a document we use `remove(<QUERY>, <OPTIONS>)`. The `<QUERY>` parameter is the same as in `find`.
 
+```javascript
+> db.coders.remove({username: "gabrielelana"})
+WriteResult({ "nRemoved" : 1 })
 
+> db.coders.find({}, {_id: 0, username: 1})
+{ "username" : "filippoliverani" }
+{ "username" : "albertobrandolini" }
+```
 
+By default it removes all documents matching `<QUERY>`
+
+```javascript
+> db.coders.remove({})
+WriteResult({ "nRemoved" : 2 })
+
+> db.coders.count()
+0
+```
+
+---
+
+template: content
+# Remove: Single Document
+
+To remove a single document you can be selective with `<QUERY>` or you can use the `{justOne: true}` option
+
+```javascript
+> db.visits.find({}, {_id: 1})
+{ "_id" : ObjectId("5667df0abe2e0c48d1025308") }
+{ "_id" : ObjectId("5667e3dcbe2e0c48d1025309") }
+
+*> db.visits.remove({}, {justOne: true})
+WriteResult({ "nRemoved" : 1 })
+
+> db.visits.find({}, {_id: 1})
+{ "_id" : ObjectId("5667e3dcbe2e0c48d1025309") }
+
+*> db.visits.remove(ObjectId("5667e3dcbe2e0c48d1025309"))
+WriteResult({ "nRemoved" : 1 })
+```
 
 
 
