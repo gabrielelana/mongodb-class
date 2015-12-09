@@ -75,6 +75,7 @@ template: content
 * Table
 * Row
 * Index
+* Column
 * Join
 * Foreign Key
 * Partition
@@ -86,8 +87,9 @@ template: content
 * **Collection**
 * **Document**
 * **Index**
+* **Field**
 * **Embedded**
-* **Reference**
+* **Link**
 * **Shard**
 ]
 
@@ -857,6 +859,322 @@ template: content
 * For a beginner it's more straightforward than SQL
 * Easy to be extended programmatically (look at mongodb-shell-extensions)
 * When you get used to it it's mostly OK ;-)
+
+---
+
+template: content
+# Update
+
+To update a document we use `update(<QUERY>, <UPDATE>, <OPTIONS>)`. The `<QUERY>` parameter is the same as in `find`. The `<UPDATE>` parameter could be an object value that will replace the matching document.
+
+```javascript
+> gabriele = db.coders.findOne({username: "gabrielelana"})
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe"),
+  "username" : "gabrielelana",
+  "email" : "gabriele.lana@gmail.com"
+}
+
+> gabriele.email = [gabriele.email, "gabriele.lana@cleancode.it"]
+[ "gabriele.lana@gmail.com", "gabriele.lana@cleancode.it" ]
+
+> db.coders.update({username: "gabrielelana"}, gabriele)
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.coders.findOne({username: "gabrielelana"})
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe"),
+  "username" : "gabrielelana",
+  "email" : [
+    "gabriele.lana@gmail.com",
+    "gabriele.lana@cleancode.it"
+  ]
+}
+```
+
+---
+
+template: content
+# Update
+
+If the replacing document doesn't have an `ObjectId` one is generated
+
+```javascript
+> db.coders.update({username: "gabrielelana"}, {fake: true})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.coders.findOne({username: "gabrielelana"})
+null
+
+> db.coders.findOne({fake: true})
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe"), "fake" : true }
+
+> db.coders.update({fake: true}, gabriele)
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.coders.find({}, {username: 1, _id: 0})
+{ "username" : "albertobrandolini" }
+{ "username" : "filippoliverani" }
+{ "username" : "gabrielelana" }
+```
+
+---
+
+template: content
+# Update
+
+In the `<UPDATE>` parameter we can use update operators, the first is `$set`
+
+```javascript
+> db.coders.update({username: "gabrielelana"}, {$set: gabriele})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 0 })
+
+> db.coders.findOne({username: "gabrielelana"})
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe"),
+  "username" : "gabrielelana",
+  "email" : [
+    "gabriele.lana@gmail.com",
+    "gabriele.lana@cleancode.it"
+  ]
+}
+```
+
+With `$set` you can replace a single field without fetching the document
+
+```javascript
+> db.coders.update(
+... {username: "gabrielelana"},
+... {$set: {"email": "gabriele.lana@gmail.com"}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.coders.findOne({username: "gabrielelana"}, {_id: 0, email: 1})
+{ "email" : "gabriele.lana@gmail.com" }
+```
+
+---
+
+template: content
+# Update: Multiple Documents
+
+Add `skills: ["coding"]` to all the coders
+
+```javascript
+> db.coders.update({}, {$set: {skills: ["coding"]}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.coders.find({}, {skills: 1})
+{ "_id" : ObjectId("5666f6fd10e86a873c801e2d") }
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe") }
+{ "_id" : ObjectId("5666df1710e86a873c801e27"), "skills" : [ "coding" ] }
+```
+
+By defaults `update` works only on the first matching document, use `{multi: true}` option
+
+```javascript
+> db.coders.update({}, {$set: {skills: ["coding"]}}, {multi: true})
+WriteResult({ "nMatched" : 3, "nUpserted" : 0, "nModified" : 2 })
+
+> db.coders.find({}, {skills: 1})
+{ "_id" : ObjectId("5666f6fd10e86a873c801e2d"), "skills" : [ "coding" ] }
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe"), "skills" : [ "coding" ] }
+{ "_id" : ObjectId("5666df1710e86a873c801e27"), "skills" : [ "coding" ] }
+```
+
+---
+
+template: content
+# Update: Update or Insert
+
+```javascript
+var hit = function(url, day) {
+  visit = db.visits.findOne({url: url, at: day})
+  if (visit === null) {
+    db.visits.insert({url: url, at: day, hits: 1})
+  } else {
+    db.visits.update({url: url, at: day}, {$set: {hits: visit.hits + 1}})
+  }
+}
+
+> hit("http://corriere.it", "2015/12/09")
+
+> db.visits.find({}, {_id: 0})
+{ "url" : "http://corriere.it", "at" : "2015/12/09", "hits" : 1 }
+
+> hit("http://corriere.it", "2015/12/09")
+
+> db.visits.find({}, {_id: 0})
+{ "url" : "http://corriere.it", "at" : "2015/12/09", "hits" : 2 }
+```
+
+Mehhh...
+
+---
+
+template: content
+# Update: Update or Insert
+
+Option `{upsert: true}` to the rescue
+
+```javascript
+> db.visits.drop()
+> db.visits.update(
+... {url: "http://corriere.it", at: "2015/12/09"},
+... {$set: {hits: 1}},
+... {upsert: true})
+WriteResult({"nMatched" : 0, "nUpserted" : 1, "nModified" : 0})
+
+> db.visits.find({}, {_id: 0})
+{ "at" : "2015/12/09", "url" : "http://corriere.it", "hits" : 1 }
+```
+
+Ok, but now? How could I increase the hits?
+
+---
+
+template: content
+# Update: Update or Insert
+
+Increase counters with `$inc` operator
+
+```javascript
+> db.visits.drop()
+> db.visits.update(
+... {url: "http://corriere.it", at: "2015/12/09"},
+*... {$inc: {hits: 1}},
+... {upsert: true})
+WriteResult({"nMatched" : 0, "nUpserted" : 1, "nModified" : 0})
+
+> db.visits.find({}, {_id: 0})
+{ "at" : "2015/12/09", "url" : "http://corriere.it", "hits" : 1 }
+```
+
+When you do it again...
+
+```javascript
+> db.visits.update(
+... {url: "http://corriere.it", at: "2015/12/09"},
+*... {$inc: {hits: 1}},
+... {upsert: true})
+*WriteResult({"nMatched" : 1, "nUpserted" : 0, "nModified" : 1})
+
+> db.visits.find({}, {_id: 0})
+{ "at" : "2015/12/09", "url" : "http://corriere.it", "hits" : 2 }
+```
+
+---
+
+template: content
+# Update: Multiple Operators
+
+You can use multiple operators in the same update and all the operators are applied in an atomic way. Here we will use `$inc` and `$set` at the same time
+
+```javascript
+> db.visits.update(
+... {url: "http://corriere.it", at: "2015/12/09"},
+*... {$inc: {hits: 1}, $set: {updated_at: new ISODate()}},
+... {upsert: true})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.visits.find({}, {_id: 0, hists: 1, updated_at: 1})
+{ "hits" : 3, "updated_at" : ISODate("2015-12-09T08:13:24.379Z") }
+
+> db.visits.update(
+... {url: "http://corriere.it", at: "2015/12/09"},
+*... {$inc: {hits: 1}, $set: {updated_at: new ISODate()}},
+... {upsert: true})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.visits.find({}, {_id: 0, hists: 1, updated_at: 1})
+{ "hits" : 4, "updated_at" : ISODate("2015-12-09T08:13:34.638Z") }
+```
+
+---
+
+template: content
+# Update: Only on Insert
+
+You can add a field only when the `update` results in an `insert` with `$setOnInsert`
+
+```javascript
+> db.visits.drop()
+> db.visits.update(
+... {url: "http://www.corriere.it", at: "2015/12/09"},
+... {$inc: {hits: 1},
+...  $set: {updated_at: new ISODate()},
+*...  $setOnInsert: {created_at: new ISODate()}},
+... {upsert: true})
+
+> db.visits.find({}, {_id: 0, updated_at: 1, created_at: 1)
+{ "updated_at" : ISODate("2015-12-09T08:18:36.039Z"),
+* "created_at" : ISODate("2015-12-09T08:18:36.039Z")
+}
+
+> // do it again and...
+
+> db.visits.find({}, {_id: 0, updated_at: 1, created_at: 1)
+{ "updated_at" : ISODate("2015-12-09T08:22.271Z"),
+* "created_at" : ISODate("2015-12-09T08:18:36.039Z")
+}
+```
+
+---
+
+template: content
+# Update: On Arrays
+
+There are specific operators for arrays like `$push`
+
+```javascript
+> db.coders.update({username: "gabrielelana"}, {$push: {skills: "MongoDB"}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.coders.findOne({username: "gabrielelana"})
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe"),
+  "username" : "gabrielelana",
+  "email" : "gabriele.lana@gmail.com",
+  "skills" : [
+    "coding",
+    "MongoDB"
+  ]
+}
+```
+
+---
+
+template: content
+# Update: On Arrays
+
+What if you want to add skills without repetition? Use `$addToSet`
+
+```javascript
+> db.coders.update(
+... {username: "gabrielelana"},
+... {$addToSet: {skills: "JavaScript"}})
+*WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+
+> db.coders.update(
+... {username: "gabrielelana"},
+... {$addToSet: {skills: "JavaScript"}})
+*WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 0 })
+
+> db.coders.findOne({username: "gabrielelana"})
+{ "_id" : ObjectId("5666d875348d8fdba2aa92fe"),
+  "username" : "gabrielelana",
+  "email" : "gabriele.lana@gmail.com",
+  "skills" : [
+    "coding",
+    "MongoDB",
+    "JavaScript"
+  ]
+}
+```
+
+
+
+
+
+
+
+
+
 
 
 
