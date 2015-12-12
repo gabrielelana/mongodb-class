@@ -1891,6 +1891,59 @@ template: section
 
 ---
 
+template: content
+# Data Workshop
+
+1. Write a MongoDB query to display all the documents in the collection restaurants
+2. Write a MongoDB query to display the fields `restaurant_id`, `name`, `borough` and `cuisine` for all the documents in the collection restaurants
+3. Write a MongoDB query to display the fields `restaurant_id`, `name`, `borough` and `cuisine`, but exclude the field `_id` for all the documents in the collection restaurants
+4. Write a MongoDB query to display all the restaurant which is in the borough "Bronx"
+5. Write a MongoDB query to display the first 5 restaurant which is in the borough "Bronx"
+6. Write a MongoDB query to display the next 5 restaurants after skipping first 5 which are in the borough "Bronx"
+7. Write a MongoDB query to find the restaurants who achieved a score more than 90
+
+---
+
+template: content
+# Data Workshop
+
+1. Write a MongoDB query to find the restaurants that achieved a score, more than 80 but less than 100
+2. Write a MongoDB query to find the restaurants which locates in latitude value less than -95.754168
+3. Write a MongoDB query to find the restaurants that does not prepare any cuisine of "American" and their grade score more than 70 and longitude less than -65.754168
+4. Do the query before without using `$and` operator, then use the `$and` operator, is there any difference in the `explain()` output?
+5. Write a MongoDB query to find the restaurants which does not prepare any cuisine of "American" and achieved a grade point "A" not belongs to the borough "Brooklyn". The document must be displayed according to the cuisine in descending order
+6. Write a MongoDB query to find the `restaurant_id`, `name`, `borough` and `cuisine` for those restaurants which contains "Wil" as first three letters for its name
+7. Write a MongoDB query to find the `restaurant_id`, `name`, `borough` and `cuisine` for those restaurants which contains "ces" as last three letters for its name
+
+---
+
+template: content
+# Data Workshop
+
+1. Write a MongoDB query to find the `restaurant_id`, `name`, `borough` and `cuisine` for those restaurants which contains "Reg" as three letters somewhere in its name
+2. Write a MongoDB query to find the restaurants which belongs to the borough "Bronx" and prepared either "American" or "Chinese" dish
+3. Write a MongoDB query to find the `restaurant_id`, `name`, `borough` and `cuisine` for those restaurants which belongs to the borough "Staten Island" or "Queens" or "Bronx" or "Brooklyn"
+4. Write a MongoDB query to find the `restaurant_id`, `name`, `borough` and `cuisine` for those restaurants which are not belonging to the borough "Staten Island" or "Queens" or "Bronx" or "Brooklyn"
+5. Write a MongoDB query to find the `restaurant_id`, `name`, `borough` and `cuisine` for those restaurants which achieved a score which is not more than 10
+6. Write a MongoDB query to find the `restaurant_id`, `name`, `borough` and `cuisine` for those restaurants which prepared dish except "American" and "Chines" or restaurant's name begins with letter "Wil"
+7. Write a MongoDB query to find the `restaurant_id`, `name` and `grades` for those restaurants which achieved a grade of "A" and scored 11 on an `ISODate("2014-08-11T00:00:00Z")` among many of survey dates
+
+---
+
+template: content
+# Data Workshop
+
+1. Write a MongoDB query to find the `restaurant_id`, `name` and `grades` for those restaurants where 2nd element of `grades` array contains a grade of "A" and score 9 on an `ISODate("2014-08-11T00:00:00Z")`
+2. Write a MongoDB query to find the `restaurant_id`, `name` and `address` for those restaurants where 2nd element of `coord` array contains a value which is more than 42 and up to 52
+3. Write a MongoDB query to arrange the name of the restaurants in ascending order
+8. Write a MongoDB query which will select the `restaurant_id`, `name` and `grades` for those restaurants which returns 0 as a remainder after dividing the score by 7
+5. Write a MongoDB query to arrange the name of the cuisine in ascending order and for those same cuisine borough should be in descending order
+6. Write a MongoDB query to know whether all the addresses contains the street or not
+7. Write a MongoDB query which will select all documents in the restaurants collection where the `coord` field value is double
+
+
+---
+
 template: section
 # Data Modeling and Design
 
