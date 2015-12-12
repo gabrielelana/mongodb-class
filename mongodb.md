@@ -1560,6 +1560,332 @@ template: section
 
 ---
 
+template: content
+# Aggregation Framework: Pipeline
+
+Possible stages
+
+* `$project`: Specify fields to be placed in the output document
+* `$match`: Select documents to be processed (like `find`)
+* `$limit`: Limit the number of documents to be passed to the next step
+* `$skip`: Skip a specified number of documents
+* `$unwind`: Expand an array, generating one output document for each array entry
+* `$group`: Group documents by a specified key
+* `$sort`: Sort documents
+* `$geoNear`: Select documents near a geospatial location
+* `$out`: Write the results of a pipeline to a collection
+
+Details
+
+* You can use it with `aggregate([<STAGE>, <STAGE>, ...])` method on collection
+* Every stage could be repeated more than one time
+* The result is a cursor (was a document in MongoDB <= 2.6)
+
+---
+
+template: content
+# Aggregation Framework: Group
+
+Count number of reviews for each product with `aggregate([$group])`
+
+```javascript
+> use garden
+
+> db.reviews.aggregate([{$group: {_id: "$product_id", count: {$sum: 1}}}])
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003982"), "count" : 2 }
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003981"), "count" : 3 }
+```
+
+* The field to group by is `_id`
+* Input document fields are specified by preceding them with `$` sign, in this case we have `"$product_id"`
+* Other fields could be *aggregated* with various [accumulator operators](https://docs.mongodb.org/v3.0/reference/operator/aggregation/group/#pipe._S_group)
+
+---
+
+template: content
+# Aggregation Framework: Group
+
+Average review for a product
+
+```javascript
+> db.reviews.aggregate([
+...   {$group: {_id: "$product_id",
+*...             average: {$avg: "$rating"},
+...             count: {$sum: 1}}}
+... ])
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003982"),
+  "average" : 3.5,
+  "count" : 2 }
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003981"),
+  "average" : 4.333333333333333,
+  "count" : 3 }
+```
+
+---
+
+template: content
+# Aggregation Framework: Match
+
+Counting reviews on a product by rating (Like what you see on Amazon: 5 reviews with 4 stars, 3 reviews with 3 starts, ...)
+
+```javascript
+> db.reviews.aggregate([
+*...   {$match: {"product_id": ObjectId("4c4b1476238d3b4dd5003981")}},
+...   {$group: {_id: "$rating", count: {$sum: 1}}}
+... ])
+{ "_id" : 5, "count" : 1 }
+{ "_id" : 4, "count" : 2 }
+```
+
+---
+
+template: content
+# Aggregation Framework: Out
+
+Count products in main categories and save report in `main_category_summary` collection
+
+```javascript
+> db.products.aggregate([
+...   {$group: {"_id": "$main_cat_id", count: {$sum: 1}}},
+...   {$out: "main_category_summary"}
+... ])
+
+> db.main_category_summary.find()
+{ "_id" : ObjectId("6a5b1476238d3b4dd5000048"), "count" : 2 }
+```
+
+We miss the category name in the output, solutions:
+* `db.main_category_summary.find().forEach(function(d) { ... })`
+* `$lookup` only for MongoDB >= 3.2
+
+---
+
+template: content
+# Aggregation Framework: Project
+
+Count products in categories. A product is in only one main category but could be in many categories. As a first stage we will limit the document to the only field that matter to use with `$project`
+
+```javascript
+> db.products.aggregate([{$project: {category_ids: 1}}])
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003982"),
+  "category_ids" : [
+    ObjectId("6a5b1476238d3b4dd5000048"),
+    ObjectId("6a5b1476238d3b4dd5000049")
+  ]
+}
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003981"),
+  "category_ids" : [
+    ObjectId("6a5b1476238d3b4dd5000048"),
+    ObjectId("6a5b1476238d3b4dd5000049")
+  ]
+}
+```
+
+Limiting the size of the documents in the pipeline could significantly improve the pipeline performance
+
+---
+
+template: content
+# Aggregation Framework: Unwind
+
+Count products in categories. After `$project` we have on document with many categories. With `$unwind` we will explode each category in its own document, other fields are copied as they are
+
+```javascript
+> db.products.aggregate([
+...   {$project: {category_ids: 1}},
+...   {$unwind: "$category_ids"}
+... ])
+
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003982"),
+  "category_ids" : ObjectId("6a5b1476238d3b4dd5000048")
+}
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003982"),
+  "category_ids" : ObjectId("6a5b1476238d3b4dd5000049")
+}
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003981"),
+  "category_ids" : ObjectId("6a5b1476238d3b4dd5000048")
+}
+{ "_id" : ObjectId("4c4b1476238d3b4dd5003981"),
+  "category_ids" : ObjectId("6a5b1476238d3b4dd5000049")
+}
+```
+
+---
+
+template: content
+# Aggregation Framework: Unwind
+
+Count product in categories. Now let's group products by category
+
+```javascript
+> db.products.aggregate([
+...   {$project: {category_ids: 1}},
+...   {$unwind: "$category_ids"},
+...   {$group: {_id: "$category_ids", count: {$sum: 1}}}
+... ])
+
+{ "_id" : ObjectId("6a5b1476238d3b4dd5000049"), "count" : 2 }
+{ "_id" : ObjectId("6a5b1476238d3b4dd5000048"), "count" : 2 }
+```
+
+---
+
+template: content
+# Aggregation Framework: Group Functions
+
+* `$addToSet`: Creates an array of unique values of the group
+* `$first`: The first value in a group. Makes sense only if preceded by `$sort`
+* `$last`: The last value in a group. Makes sense only if preceded by `$sort`
+* `$max`: The maximum value of a field for a group
+* `$min`: The minimum value of a field for a group
+* `$avg`: Average value for a field
+* `$push`: Returns an array of all values for the group
+* `$sum`: Sum all values in a group
+
+
+---
+
+template: content
+# Aggregation Framework: Reshaping
+
+The MongoDB aggregation framework contains a number of functions you can use to reshape a document and thus produce an output document that contains fields not in the original input document
+
+```javascript
+db.users.aggregate([
+...   {$project: {name: {$concat: ["$first_name", " ", "$last_name"]},
+...               first_initial: {$substr: ["$first_name", 0, 1]},
+...               normalized_username: {$toUpper: "$username"}}}
+... ])
+
+{ "_id" : ObjectId("4c4b1476238d3b4dd5000002"),
+  "name" : "Peter Bakkum",
+  "first_initial" : "P",
+  "normalized_username" : "PBAKKUM" }
+{ "_id" : ObjectId("4c4b1476238d3b4dd5000003"),
+  "name" : "Tim Hawkins",
+  "first_initial" : "T",
+  "normalized_username" : "THAWKINS"
+}
+...
+```
+
+---
+
+template: content
+# Aggregation Framework: Example
+
+Find out which are the top 6 related books of book with id `312`
+
+```javascript
+> use examples
+
+> db.books.findOne({_id: 132})
+{ "_id" : 312,
+  "title" : "JDK 1.4 Tutorial",
+  "isbn" : "1930110456",
+  "pageCount" : 408,
+  "publishedDate" : ISODate("2002-03-01T08:00:00Z"),
+  "thumbnailUrl" : "https://s3.amazonaws.com/AKIAJC5RLADLU...",
+  "longDescription" : "Java is a success. It is now...",
+  "status" : "PUBLISH",
+  "authors" : [
+    "Gregory M. Travis"
+  ],
+  "categories" : [
+    "Java",
+    "Internet"
+  ]
+}
+```
+
+---
+
+template: content
+# Aggregation Framework: Example
+
+In the output we don't want the book itself and we want only `PUBLISH` books
+
+```javascript
+> db.books.aggregate([
+...   {$match: {_id: {$ne: 312}, status: "PUBLISH"}}
+... ])
+```
+
+We define related books as books that are in the same categories. Here with the first `$project` we are taking only the categories that are in `["Java", "Internet"]`. With the second `$project` we are counting the number of such categories.
+
+```javascript
+> categories = ["Java", "Internet"]
+
+> db.books.aggregate([
+...   {$match: {_id: {$ne: 312}, status: "PUBLISH"}},
+*...   {$project: {common: {$setIntersection: ["$categories", categories]}}},
+*...   {$project: {common: {$size: "$common"}}},
+... ])
+```
+
+---
+
+template: content
+# Aggregation Framework: Example
+
+Now we need to sort the results based on the number of matching categories and, since we have too many match, on the publishing date, preferring books that are more recent. As a last touch we take the first 3 results.
+
+```javascript
+> categories = ["Java", "Internet"]
+
+> db.books.aggregate([
+...   {$match: {_id: {$ne: 312}, status: "PUBLISH"}},
+...   {$project: {common: {$setIntersection: ["$categories", categories]}}},
+...   {$project: {common: {$size: "$common"}}},
+*...   {$sort: {common: -1, publishedDate: -1}},
+*...   {$limit: 6},
+... ])
+
+{ "_id" : 154, "common" : 2 }
+{ "_id" : 139, "common" : 2 }
+{ "_id" : 194, "common" : 2 }
+{ "_id" : 272, "common" : 2 }
+{ "_id" : 229, "common" : 2 }
+{ "_id" : 135, "common" : 2 }
+```
+
+---
+
+template: content
+# Aggregation Framework: Example
+
+We still miss the title
+
+```javascript
+> db.books.aggregate([
+...   {$match: {_id: {$ne: 312}, status: "PUBLISH"}},
+...   {$project: {common: {$setIntersection: ["$categories", categories]}}},
+...   {$project: {common: {$size: "$common"}}},
+...   {$sort: {common: -1, publishedDate: -1}},
+...   {$limit: 6},
+*... ]).map(function(d) { return db.books.findOne({_id: d._id}, {title: 1}) })
+
+[ { "_id" : 154, "title" : "Struts in Action" },
+  { "_id" : 139, "title" : "Java Development with Ant" },
+  { "_id" : 194, "title" : "Tapestry in Action" },
+  { "_id" : 272, "title" : "Swing Second Edition" },
+  { "_id" : 229, "title" : "Server-Based Java Programming" },
+  { "_id" : 135, "title" : "GWT in Action" }
+]
+```
+
+---
+
+template: content
+# Aggregation Framework: Performance
+
+* Try to reduce the number and the size of the documents as soon as possible
+* Indexes can only be used by `$match` and `$sort` stages and can greatly speed up these operations
+* You can't use an index after your pipeline uses an operator other than `$match` or `$sort`
+* Don't forget that you can use `aggregate` in batch processes, save the result with `$out` and then query the result like a "normal" collection
+
+---
+
 template: section
 # Data Workshop
 
