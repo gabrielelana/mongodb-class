@@ -16,16 +16,39 @@ template: section
 ---
 
 template: content
-# NoSql: Not Only Sequel
-.todo.center[IMAGE]
+# NoSql: Not Only SQL
+.center[![NoSQL](images/nosql.png)]
+
+---
+
+template: content
+# SQL: Persistence it's a centralized service
+
+.center[![Relational](images/relational.png)]
 
 ---
 
 template: content
 # NoSql: Persistence it's a service concern
+
+.center[![SOA](images/soa.png)]
+
+---
+
+template: content
+# NoSql: Avoid the Impedance Mismatch
+
+.center[![SOA](images/mismatch.png)]
+
+---
+
+template: content
+# NoSql: MongoDB
+
 * You don't have to choose a "one size fits all" solution
 * You can choose what's best for your data (aka specialized data storage)
-.todo.center[IMAGE]
+
+.center[![MongoDB](images/mongodb.png)]
 
 ---
 
@@ -199,7 +222,8 @@ template: content
 
 template: content
 # MongoDB: Client/Server
-.todo[IMAGE]
+
+.center[![Drivers](images/driver.png)]
 
 ---
 
