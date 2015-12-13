@@ -1973,5 +1973,220 @@ template: section
 
 ---
 
+template: content
+# Incremental Design
+
+* Needed data should be easily extracted
+* The way you need to query your data should influence your design
+* Monitoring and adapting it's better than doing it right the first time (actually the first time is the worst time)
+
+---
+
+template: content
+# Queries
+
+* Use `$in` instead of `$and` or do multiple queries
+* Use conventions to build smart fields: `day-20151214`, `week-201552`, ... (works well also with `_id` field)
+* Create indexes on array fields to create local reverse indexes for documents (`order.placed_at: ["2015", "201512", "2015w52", "20151214"]`)
+* Create indexes on array fields with key/value elements using `$elemMatch` for heavily dynamic attributes (`order.placed_at: [{"year": "2015"}, {"month": "201512"}]`)
+* Be aware that dates always require a range, could be a problem with queries like: "total number of products sold on mondays"
+* Be careful with `limit` and `skip` for pagination
+
+---
+
+template: content
+# Document Shape
+
+* Consider to keep a version number in your documents in `_v` field, some drivers or DOM (Document Object Mapper) does that automatically
+
+---
+
+template: content
+# Link or Embed?
+
+Reference
+
+```javascript
+{ ...
+  address: ObjectId("566d2e01388c52a45c3eac43"),
+  // or address_id: ObjectId("566d2e01388c52a45c3eac43"),
+  ...
+}
+```
+
+---
+
+template: content
+# Link or Embed?
+
+Reference with Context
+
+```javascript
+{ ...
+  address: {
+    _id: ObjectId("566d2e01388c52a45c3eac43"),
+    notes: "Be careful of my dog!",
+  }
+  ...
+}
+```
+
+---
+
+template: content
+# Link or Embed?
+
+Embedded
+
+```javascript
+{ ...
+  address: {
+    name: "Gabriele Lana",
+    street: "via delle forze armate, 327",
+    building: "scala H, ultimo piano",
+    ...
+  }
+  ...
+}
+```
+
+---
+
+template: content
+# Link or Embed?
+
+* Consider how data is consumed: if they always get fetched together they should be together
+* Consider how much that data could grow
+  * If a list could grow indefinitely then it's a collection not an array
+  * There are performance issues for a document that continuously grow over time
+* Consider data consistency issues
+* In how many places the same data is replicated?
+* That piece of data could change over time?
+* No more than 3 level of indentation (there are also performance issues)
+* Prefer embed to link when in doubt, you can change your mind later, start with a simpler solution
+
+---
+
+template: content
+# Transactions: Two Phase Commit
+
+Given some accounts with a balance (look at multiple insert)
+
+```javascript
+> db.accounts.insert([
+    {_id: "A", balance: 1000},
+    {_id: "B", balance: 1000}
+  ])
+```
+
+Create a transaction
+
+```javascript
+> db.transactions.insert(
+    {source: "A",
+     destination: "B",
+     value: 100,
+     state: "initial",
+     lastModified: new ISODate()}
+  )
+```
+
+---
+
+template: content
+# Transactions: Two Phase Commit
+
+Find a transaction to apply
+
+```javascript
+> t = db.transactions.findOne({state: "initial"})
+```
+
+Update the status so that we can start to work on it
+
+```javascript
+> db.transactions.update(
+    {_id: t._id, state: "initial"},
+    {$set: {state: "pending"}, $currentDate: {lastModified: true}}
+  )
+```
+
+Or you can combine both with `findAndModify()`
+
+```javascript
+> t = db.transactions.findAndModify({
+    query: {state: "initial"},
+    update: {$set: {state: "pending"}, $currentDate: {lastModified: true}}
+  })
+```
+
+---
+
+template: content
+# Transactions: Two Phase Commit
+
+Apply the transaction to both accounts
+
+```javascript
+> db.accounts.update(
+    {_id: t.source, pendingTransactions: {$ne: t._id}},
+    {$inc: {balance: -t.value}, $push: {pendingTransactions: t._id}}
+  )
+
+> db.accounts.update(
+    {_id: t.destination, pendingTransactions: {$ne: t._id}},
+    {$inc: {balance: t.value}, $push: {pendingTransactions: t._id}}
+  )
+
+> db.accounts.find().pretty()
+{ "_id" : "A", "balance" : 900, "pendingTransactions" : [ 1 ] }
+{ "_id" : "B", "balance" : 1100, "pendingTransactions" : [ 1 ] }
+```
+
+---
+
+template: content
+# Transactions: Two Phase Commit
+
+Update transaction state
+
+```javascript
+> db.transactions.update(
+    {_id: t._id, state: "pending"},
+    {$set: {state: "applied"}, $currentDate: {lastModified: true}}
+  )
+```
+
+Remove the pending transaction from accounts
+
+```javascript
+> db.accounts.update(
+   {pendingTransactions: t._id },
+   {$pull: {pendingTransactions: t._id }},
+   {multi: true}
+  )
+
+> db.accounts.find().pretty()
+{ "_id" : "A", "balance" : 900, "pendingTransactions" : [ ] }
+{ "_id" : "B", "balance" : 1100, "pendingTransactions" : [ ] }
+```
+
+---
+
+template: content
+# Transactions: Two Phase Commit
+
+```javascript
+> db.transactions.update(
+    {_id: t._id, state: "applied"},
+    {$set: {state: "done"}, $currentDate: {lastModified: true}}
+  )
+```
+
+* The transaction can always be recovered or rolled back?
+* Can we ensure with this model that an account can't have a negative balance?
+
+---
+
 template: section
 # Design Workshop
