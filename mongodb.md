@@ -1998,6 +1998,7 @@ template: content
 # Document Shape
 
 * Consider to keep a version number in your documents in `_v` field, some drivers or DOM (Document Object Mapper) does that automatically
+* Consider the trade-off between a short field name (for smaller documents) and a long field name (more human friendly)
 
 ---
 
@@ -2060,10 +2061,12 @@ template: content
   * If a list could grow indefinitely then it's a collection not an array
   * There are performance issues for a document that continuously grow over time
 * Consider data consistency issues
+* Consider the life time of the documents
 * In how many places the same data is replicated?
 * That piece of data could change over time?
 * No more than 3 level of indentation (there are also performance issues)
 * Prefer embed to link when in doubt, you can change your mind later, start with a simpler solution
+* In a many to one relationship use by default an array of ids, avoid circular dependencies
 
 ---
 
@@ -2185,6 +2188,22 @@ template: content
 
 * The transaction can always be recovered or rolled back?
 * Can we ensure with this model that an account can't have a negative balance?
+
+---
+
+template: content
+# Constraints?
+
+* Always have a document/wiki where you describe for every "kind" of document the possible fields and their description
+* Always have examples of documents
+* Integrity tests are good
+
+---
+
+template: content
+# Reporting Hell?
+
+.center[![CQRS/ES](images/cqrs.png)]
 
 ---
 
