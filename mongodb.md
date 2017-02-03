@@ -237,7 +237,7 @@ $ mongo examples
 
 Connected to the database `examples`
 ```javascript
-MongoDB shell version: 3.0.6
+MongoDB shell version: 3.2.10
 connecting to: examples
 >
 ```
@@ -1965,6 +1965,81 @@ template: content
 6. Write a MongoDB query to know whether all the addresses contains the street or not
 7. Write a MongoDB query which will select all documents in the restaurants collection where the `coord` field value is double
 
+
+---
+
+template: section
+# ReplicaSet and Backup
+
+---
+
+template: content
+# What about Sharding? (Demo Time)
+
+---
+
+template: content
+# Start ReplicaSet
+
+```sh
+MONGOD=./.opt/mongodb-3.4.2/bin/mongod
+MONGO=./.opt/mongodb-3.4.2/bin/mongo
+
+mkdir -p ./var/log
+
+mkdir -p ./var/data/rs-1
+$MONGOD --replSet 'example-rs' --port 3001 \
+  --dbpath ./var/data/rs-1 --logpath ./var/log/rs-1.log \
+  --nojournal --noprealloc --smallfiles \
+  --fork --quiet >> ./var/log/rs-start.log
+
+mkdir -p ./var/data/rs-2
+$MONGOD --replSet 'example-rs' --port 3002 \
+  --dbpath ./var/data/rs-2 --logpath ./var/log/rs-2.log \
+  --nojournal --noprealloc --smallfiles \
+  --fork --quiet >> ./var/log/rs-start.log
+
+mkdir -p ./var/data/rs-3
+$MONGOD --replSet 'example-rs' --port 3003 \
+  --dbpath ./var/data/rs-3 --logpath ./var/log/rs-3.log \
+  --nojournal --noprealloc --smallfiles \
+  --fork --quiet >> ./var/log/rs-start.log
+```
+
+---
+
+template: content
+# Start ReplicaSet
+
+```sh
+$MONGO localhost:3001/admin --quiet --eval "
+  print('Configure primary node of example-rs')
+
+  rs.initiate({
+    _id: 'example-rs',
+    members: [{_id: 0, host: 'localhost:3001'}]
+  })
+
+  print('Waiting for primary election...')
+  while(rs.status().myState !== 1) {
+    print('status: ' + rs.status().myState)
+    sleep(1)
+  }
+
+  print('Configure replica set')
+  printjson([
+    rs.add('localhost:3002'),
+    rs.addArb('localhost:3003')
+  ])
+"
+```
+
+---
+
+template: content
+# Backup with Hidden Replica
+
+## TODO
 
 ---
 
