@@ -1,0 +1,13 @@
+#!/bin/bash
+
+MONGO=./.opt/mongodb-3.4.2/bin/mongo
+
+$MONGO localhost:3001/admin --eval 'db.shutdownServer({force: true})' --quiet > /dev/null 2>&1
+$MONGO localhost:3002/admin --eval 'db.shutdownServer({force: true})' --quiet > /dev/null 2>&1
+$MONGO localhost:3003/admin --eval 'db.shutdownServer({force: true})' --quiet > /dev/null 2>&1
+$MONGO localhost:3004/admin --eval 'db.shutdownServer({force: true})' --quiet > /dev/null 2>&1
+
+sleep 5
+
+rm -rf ./var/data/*
+rm -rf ./var/log/*

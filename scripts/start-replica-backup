@@ -1,0 +1,58 @@
+#!/bin/bash
+
+MONGOD=./.opt/mongodb-3.4.2/bin/mongod
+MONGO=./.opt/mongodb-3.4.2/bin/mongo
+DUMP=./.opt/mongodb-3.4.2/bin/mongodump
+RESTORE=./.opt/mongodb-3.4.2/bin/mongorestore
+
+mkdir -p ./var/log
+
+mkdir -p ./var/data/rs-1
+$MONGOD --replSet 'example-rs' --port 3001 --dbpath ./var/data/rs-1 --logpath ./var/log/rs-1.log --nojournal --noprealloc --smallfiles --fork --quiet >> ./var/log/rs-start.log
+
+mkdir -p ./var/data/rs-2
+$MONGOD --replSet 'example-rs' --port 3002 --dbpath ./var/data/rs-2 --logpath ./var/log/rs-2.log --nojournal --noprealloc --smallfiles --fork --quiet >> ./var/log/rs-start.log
+
+mkdir -p ./var/data/rs-3
+$MONGOD --replSet 'example-rs' --port 3003 --dbpath ./var/data/rs-3 --logpath ./var/log/rs-3.log --nojournal --noprealloc --smallfiles --fork --quiet >> ./var/log/rs-start.log
+
+mkdir -p ./var/data/restore
+$MONGOD --port 3004 --dbpath ./var/data/restore --logpath ./var/log/restore.log --nojournal --noprealloc --smallfiles --fork --quiet >> ./var/log/rs-start.log
+
+$MONGO localhost:3001/admin --quiet --eval "
+  print('Configure primary node of example-rs')
+
+  rs.initiate({
+    _id: 'example-rs',
+    members: [{_id: 0, host: 'localhost:3001'}]
+  })
+
+  print('Waiting for primary election...')
+  while(rs.status().myState !== 1) {
+    print('status: ' + rs.status().myState)
+    sleep(1)
+  }
+
+  print('Configure replica set')
+  printjson([
+    rs.add({host: 'localhost:3002'}),
+    rs.add({host: 'localhost:3003', priority: 0, hidden: true})
+  ])
+"
+
+echo "Insert some documents in the primary..." && sleep 5
+
+$MONGO localhost:3001/dirimo --quiet --eval "
+  db.foo.insert({foo: 1})
+  db.foo.insert({foo: 2})
+  db.foo.insert({foo: 3})
+  db.foo.count()
+"
+
+echo "Backup data from hidden replica to file system..." && sleep 5
+
+$DUMP --host localhost --port 3003 --out ./var/data/backup --oplog
+
+echo "Remote data from file system to another MongoDB..." && sleep 5
+
+$RESTORE --host localhost --port 3004 --drop --oplogReplay ./var/data/backup
