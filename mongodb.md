@@ -1622,7 +1622,7 @@ Count number of reviews for each product with `aggregate([$group])`
 
 * The field to group by is `_id`
 * Input document fields are specified by preceding them with `$` sign, in this case we have `"$product_id"`
-* Other fields could be *aggregated* with various [accumulator operators](https://docs.mongodb.org/v3.0/reference/operator/aggregation/group/#pipe._S_group)
+* Other fields could have been *aggregated* with various [accumulator operators](https://docs.mongodb.org/v3.0/reference/operator/aggregation/group/#pipe._S_group)
 
 ---
 
