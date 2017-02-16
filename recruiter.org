@@ -235,15 +235,23 @@
 ** Explanation
    This is much better because
    - We don't have contention when picking jobs because there's only one recruiter process
-     so it doesn't have to lock anything, when a worker it's available it can suddenly
-     became unavailable because the only one who can assign job is the recruiter. What can
-     happen is that a worken can become available in the meantime but who cares, it will
-     be considered in the next round of job assignment
+     so it doesn't have to lock anything, when a worker it's available it can't suddenly
+     become unavailable because the only one who can assign jobs is the recruiter. What can
+     happen is that a worker can become available in the meantime but who cares, it will
+     be considered in the next round of jobs assignment
    - Workers don't have contention, they can freely modify their own document (in ~roster~
      collection) because they are the only one who are supposed to do that, they can
      freely modify their own assigned job document beucase they are the only one who are
      supposed to do that after the assignment from the recruiter
    - Bulk updates are faster
      #+BEGIN_EXAMPLE
-     TODO... bulk insert assigning jobs to workers
+        $roster->update(
+            $where = ['_id' => ['$in' => array_values($workers)]],
+            $update = ['$set' => [
+                'available' => false,
+                'assigned_to' => $assignments,
+                'assigned_since' => T\MongoDate::now()
+            ]],
+            ['multiple' => true]
+        );
      #+END_EXAMPLE
