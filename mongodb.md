@@ -197,7 +197,7 @@ template: content
 * High performance on mixed workloads
 * Scaling on demand
 * High availability and auto failover
-* Flexible schema ans secondary indexes
+* Flexible schema and secondary indexes
 * Data driven organizations (prototypes)
 * Commodity infrastructure
 * Text indexing
